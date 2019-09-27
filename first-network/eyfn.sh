@@ -164,6 +164,32 @@ function createConfigTx () {
   fi
 }
 
+function addOrdererNode () {
+  echo
+  echo "###############################################################"
+  echo "####### add Orderer4 #############"
+  echo "###############################################################"
+  docker exec cli ordnode/ordernode.sh
+  if [ $? -ne 0 ]; then
+    echo "ERROR !!!! Unable to createConfigOrdTx"
+    exit 1
+  fi
+  docker-compose -f docker-compose-ord4.yaml up -d 2>&1
+  if [ $? -ne 0 ]; then
+    echo "ERROR !!!! Unable to start ord4 node"
+    exit 1
+  fi
+  echo
+  echo "###############################################################"
+  echo "####### test the new Orderer4#############"
+  echo "###############################################################"
+  docker exec cli ordnode/testorder.sh $CHANNEL_NAME $CLI_DELAY $LANGUAGE $CLI_TIMEOUT $VERBOSE
+  if [ $? -ne 0 ]; then
+    echo "ERROR !!!! Unable to create config tx"
+    exit 1
+  fi
+}
+
 # We use the cryptogen tool to generate the cryptographic material
 # (x509 certs) for the new org.  After we run the tool, the certs will
 # be parked in the BYFN folder titled ``crypto-config``.
@@ -219,13 +245,13 @@ function generateChannelArtifacts() {
 }
 
 
-# If BYFN wasn't run abort
-if [ ! -d crypto-config ]; then
-  echo
-  echo "ERROR: Please, run byfn.sh first."
-  echo
-  exit 1
-fi
+## If BYFN wasn't run abort
+#if [ ! -d crypto-config ]; then
+#  echo
+#  echo "ERROR: Please, run byfn.sh first."
+#  echo
+#  exit 1
+#fi
 
 # Obtain the OS and Architecture string that will be used to select the correct
 # native binaries for your platform
@@ -310,9 +336,11 @@ askProceed
 
 #Create the network using docker compose
 if [ "${MODE}" == "up" ]; then
-  networkUp
+  #networkUp
+  addOrdererNode
 elif [ "${MODE}" == "down" ]; then ## Clear the network
-  networkDown
+  docker-compose -f docker-compose-ord4.yaml  down --volumes
+#  networkDown
 elif [ "${MODE}" == "generate" ]; then ## Generate Artifacts
   generateCerts
   generateChannelArtifacts
