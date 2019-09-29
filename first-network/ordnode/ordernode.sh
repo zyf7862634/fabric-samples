@@ -11,6 +11,10 @@
 # setup in the BYFN tutorial.
 #
 
+
+METHOD="$1"
+: ${METHOD:="add"}
+
 # import utils
 . scripts/utils.sh
 
@@ -24,9 +28,8 @@ function checkInstallJq() {
 }
 
 #向指定channel添加orderer节点
-function addOrdererNode(){
+function ChangeOrdererNode(){
     CHANNEL=$1
-    echo "Add orderer node to channel ：$CHANNEL"
     echo "创建不同channel的缓存目录"
     CURPATH='/opt/gopath/src/github.com/hyperledger/fabric/peer/ordnode/'${CHANNEL}''
     rm -rf $CURPATH
@@ -43,12 +46,19 @@ function addOrdererNode(){
     CERT=$(base64 /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/example.com/orderers/orderer4.example.com/tls/server.crt -w 0)
     #json格式中间不要有空格
     STRUCT='{"client_tls_cert":"'$CERT'","host":"orderer4.example.com","port":7050,"server_tls_cert":"'$CERT'"}'
-    echo "将要增加新节点的证书内容结构添加到json文件的指定字段中"
-    echo "将节点地址添加到json文件的指定字段中并写入新文件"
+    echo "将要增加/删除新节点的证书内容结构添加/删除到对应json文件的指定字段中"
+    echo "将节点地址添加/删除到json文件的指定字段中并写入新文件"
+    if [ "$METHOD" == "add" ]; then
+        OPERATION="+="
+    elif [ "$METHOD" == "del" ]; then
+        OPERATION="-="
+    fi
+    echo "############# $METHOD orderer for $CHANNEL ############"
 #    set -x
-    jq '.channel_group.groups.Orderer.values.ConsensusType.value.metadata.consenters += ['${STRUCT}']' config.json > temp.json
-    jq '.channel_group.values.OrdererAddresses.value.addresses += ["orderer4.example.com:7050"]' temp.json > config_modify.json
+    jq '.channel_group.groups.Orderer.values.ConsensusType.value.metadata.consenters '${OPERATION}' ['${STRUCT}']' config.json > temp.json
+    jq '.channel_group.values.OrdererAddresses.value.addresses '${OPERATION}' ["orderer4.example.com:7050"]' temp.json > config_modify.json
 #    set +x
+
     echo "根据修改前后的2个json文件,生成指定channel变化的pb文件"
     createConfigUpdate ${CHANNEL} config.json config_modify.json update_in_envelope.pb
     echo "更新channel，用orderer 签名"
@@ -63,10 +73,11 @@ function addOrdererNode(){
 
 #验证jq工具是否存在，不存在就安装
 checkInstallJq
-# 添加到系统通道
-addOrdererNode byfn-sys-channel
-# 添加到应用通道
-addOrdererNode mychannel
+# 更新到系统通道
+ChangeOrdererNode byfn-sys-channel
+# 更新到应用通道
+ChangeOrdererNode mychannel
+
 
 echo "等待orderer节点raft更新完成"
 cd ordnode

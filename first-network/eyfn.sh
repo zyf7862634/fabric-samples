@@ -164,20 +164,22 @@ function createConfigTx () {
   fi
 }
 
-function addOrdererNode () {
+function changeOrdererNode () {
   echo
   echo "###############################################################"
-  echo "####### add Orderer4 #############"
+  echo "####### $1 Orderer4 #############"
   echo "###############################################################"
-  docker exec cli ordnode/ordernode.sh
+  docker exec cli ordnode/ordernode.sh $1
   if [ $? -ne 0 ]; then
     echo "ERROR !!!! Unable to createConfigOrdTx"
     exit 1
   fi
-  docker-compose -f docker-compose-ord4.yaml up -d 2>&1
-  if [ $? -ne 0 ]; then
-    echo "ERROR !!!! Unable to start ord4 node"
-    exit 1
+  if [ "$1" == "add" ]; then
+      docker-compose -f docker-compose-ord4.yaml up -d 2>&1
+      if [ $? -ne 0 ]; then
+        echo "ERROR !!!! Unable to start ord4 node"
+        exit 1
+      fi
   fi
   echo
   echo "###############################################################"
@@ -337,7 +339,8 @@ askProceed
 #Create the network using docker compose
 if [ "${MODE}" == "up" ]; then
   #networkUp
-  addOrdererNode
+  changeOrdererNode "add"
+#  changeOrdererNode "del"
 elif [ "${MODE}" == "down" ]; then ## Clear the network
   docker-compose -f docker-compose-ord4.yaml  down --volumes
 #  networkDown

@@ -1,4 +1,13 @@
  Etcdraft模式测试动态增删orderer节点，
+## 修改原始工具bug
+1. 根据configtx.yaml里面得策略配置， 修改配置块orderer位置需要orderMSP.Admin角色证书得签名
+但是当前cryptogen 工具生成得orderer admin 证书角色不是admin,需要修改一下:
+common/tools/cryptogen/main.go: 664 行"FUNC generateOrdererOrg"
+	adminUser := NodeSpec{
+		isAdmin:    true,
+		CommonName: fmt.Sprintf("%s@%s", adminBaseName, orgName),
+	}
+2. 重新编译cryptogen 工具： make cryptogen
 
 ## 准备测试环境
 1. 修改configtx.yaml  注释orderer4,orderer5 相关配置
