@@ -6,11 +6,13 @@
 3. 修改byfn默认启动模式为etcdraft
 	CONSENSUS_TYPE="etcdraft"
 4. 新增了docker-compose-ord4.yaml 和 ordnode/ordernode.sh , ordnode/testorder.sh
+
 ## 开始测试
 1. 启动基础网络
     ./byfn.sh up
 2. 启动添加新orderer节点测试网络
     ./eyfn.sh up
+
 ## 清除环境
 1. 清除基础网络
     ./byfn.sh down
