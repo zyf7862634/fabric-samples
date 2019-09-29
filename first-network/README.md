@@ -1,4 +1,4 @@
-# Etcdraft模式测试动态增删orderer节点，
+ Etcdraft模式测试动态增删orderer节点，
 
 ## 准备测试环境
 1. 修改configtx.yaml  注释orderer4,orderer5 相关配置
