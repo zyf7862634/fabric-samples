@@ -20,7 +20,15 @@ common/tools/cryptogen/main.go: 664 行"FUNC generateOrdererOrg"
 1. 启动基础网络
     ./byfn.sh up
 2. 启动添加新orderer节点测试网络
-    ./eyfn.sh up
+  echo "####################TEST EtcdRAFT##############################"
+  echo " eyfn.sh up 1        : add orderer4.example.com node  and test "
+  echo " eyfn.sh up 2        : del orderer4.example.com node  and test "
+  echo " eyfn.sh up 3        : add Ord1MSP orgnazition "
+  echo " eyfn.sh up 4        : del Ord1MSP orgnazition "
+  echo " eyfn.sh up 5        : add orderer.ord1.example.com node  and test "
+  echo " eyfn.sh up 6        : del orderer.ord1.example.com node  and test "
+  echo " eyfn.sh down        : remove orderer4.example.com and orderer.ord1.example.com "
+  echo "###############################################################"
 
 ## 清除环境
 1. 清除基础网络

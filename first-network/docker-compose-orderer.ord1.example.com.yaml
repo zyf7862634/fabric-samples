@@ -1,0 +1,23 @@
+  
+version: '2'
+
+services:
+  orderer.ord1.example.com:
+    extends:
+      file: base/peer-base.yaml
+      service: orderer-base
+    container_name: orderer.ord1.example.com
+    environment:
+          - ORDERER_GENERAL_LOCALMSPID=Ord1MSP
+    networks:
+      - outside
+    volumes:
+      - ./ordnode/byfn-sys-channel/byfn-sys-channel_last.block:/var/hyperledger/orderer/orderer.genesis.block
+      - ./crypto-config/ordererOrganizations/ord1.example.com/orderers/orderer.ord1.example.com/msp:/var/hyperledger/orderer/msp
+      - ./crypto-config/ordererOrganizations/ord1.example.com/orderers/orderer.ord1.example.com/tls/:/var/hyperledger/orderer/tls
+    ports:
+      - 11050:7050
+networks:
+  outside:
+    external:
+      name: net_byfn

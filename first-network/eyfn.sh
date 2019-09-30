@@ -47,6 +47,15 @@ function printHelp () {
   echo "	eyfn.sh generate"
   echo "	eyfn.sh up"
   echo "	eyfn.sh down"
+  echo "####################TEST EtcdRAFT##############################"
+  echo " eyfn.sh up 1        : add orderer4.example.com node  and test "
+  echo " eyfn.sh up 2        : del orderer4.example.com node  and test "
+  echo " eyfn.sh up 3        : add Ord1MSP orgnazition "
+  echo " eyfn.sh up 4        : del Ord1MSP orgnazition "
+  echo " eyfn.sh up 5        : add orderer.ord1.example.com node  and test "
+  echo " eyfn.sh up 6        : del orderer.ord1.example.com node  and test "
+  echo " eyfn.sh down        : remove orderer4.example.com and orderer.ord1.example.com "
+  echo "###############################################################"
 }
 
 # Ask user for confirmation to proceed
@@ -167,30 +176,107 @@ function createConfigTx () {
 function changeOrdererNode () {
   echo
   echo "###############################################################"
-  echo "####### $1 Orderer4 #############"
+  echo "#######changeOrdererNode: $1 $2  #############"
   echo "###############################################################"
-  docker exec cli ordnode/ordernode.sh $1
+  docker exec cli ordnode/ordernode.sh $1 $2
   if [ $? -ne 0 ]; then
     echo "ERROR !!!! Unable to createConfigOrdTx"
     exit 1
   fi
-  if [ "$1" == "add" ]; then
-      docker-compose -f docker-compose-ord4.yaml up -d 2>&1
+  ORDERERHOST=""
+  if [ "$2" == "add" ]; then
+      if [ "$1" == "ordernode" ]; then
+          ORDERERHOST="orderer4.example.com"
+          docker-compose -f docker-compose-orderer4.example.com.yaml up -d 2>&1
+      elif [ "$1" == "ord1node" ]; then
+          ORDERERHOST="orderer.ord1.example.com"
+          docker-compose -f docker-compose-orderer.ord1.example.com.yaml up -d 2>&1
+      fi
+
       if [ $? -ne 0 ]; then
-        echo "ERROR !!!! Unable to start ord4 node"
+        echo "ERROR !!!! Unable to start $1 node"
         exit 1
       fi
+  elif [ "$2" == "del" ]; then
+      sleep 3
   fi
   echo
   echo "###############################################################"
-  echo "####### test the new Orderer4#############"
+  echo "####### test the new Orderer#############"
   echo "###############################################################"
-  docker exec cli ordnode/testorder.sh $CHANNEL_NAME $CLI_DELAY $LANGUAGE $CLI_TIMEOUT $VERBOSE
+  docker exec cli ordnode/testorder.sh $CHANNEL_NAME $CLI_DELAY $LANGUAGE $CLI_TIMEOUT  $ORDERERHOST
   if [ $? -ne 0 ]; then
-    echo "ERROR !!!! Unable to create config tx"
+    echo "ERROR !!!! Unable to test new order"
     exit 1
   fi
 }
+
+function ChangeOrd1Org(){
+  # generate artifacts if they don't exist
+  if [ "$2" == "add" ]; then
+    rm -rf ord1-artifacts/crypto-config
+    generateOrd1Certs
+    generateOrd1ChannelArtifacts
+  fi
+  echo
+  echo "###############################################################"
+  echo "####### Generate and submit config tx to add Ord1 orgnazition #############"
+  echo "###############################################################"
+  docker exec cli ordnode/ordernode.sh $1 $2
+  if [ $? -ne 0 ]; then
+    echo "ERROR !!!! Unable to create  add ord1 config tx"
+    exit 1
+  fi
+}
+function generateOrd1Certs (){
+  which cryptogen
+  if [ "$?" -ne 0 ]; then
+    echo "cryptogen tool not found. exiting"
+    exit 1
+  fi
+  echo
+  echo "###############################################################"
+  echo "##### Generate ord1 certificates using cryptogen tool #########"
+  echo "###############################################################"
+
+  (cd ord1-artifacts
+   set -x
+   cryptogen generate --config=./ord1-crypto.yaml
+   res=$?
+   set +x
+   if [ $res -ne 0 ]; then
+     echo "Failed to generate certificates..."
+     exit 1
+   fi
+  )
+  echo
+}
+
+# Generate channel configuration transaction
+function generateOrd1ChannelArtifacts() {
+  which configtxgen
+  if [ "$?" -ne 0 ]; then
+    echo "configtxgen tool not found. exiting"
+    exit 1
+  fi
+  echo "##########################################################"
+  echo "#########  Generating Ord1 config material ###############"
+  echo "##########################################################"
+  (cd ord1-artifacts
+   export FABRIC_CFG_PATH=$PWD
+   set -x
+   configtxgen -printOrg Ord1MSP > ../channel-artifacts/ord1.json
+   res=$?
+   set +x
+   if [ $res -ne 0 ]; then
+     echo "Failed to generate ord1 config material..."
+     exit 1
+   fi
+  )
+  cp -r ord1-artifacts/crypto-config/ordererOrganizations crypto-config/
+  echo
+}
+
 
 # We use the cryptogen tool to generate the cryptographic material
 # (x509 certs) for the new org.  After we run the tool, the certs will
@@ -286,7 +372,7 @@ IMAGETAG="latest"
 if [ "$1" = "-m" ];then	# supports old usage, muscle memory is powerful!
     shift
 fi
-MODE=$1;shift
+MODE=$1
 # Determine whether starting, stopping, restarting or generating for announce
 if [ "$MODE" == "up" ]; then
   EXPMODE="Starting"
@@ -338,11 +424,29 @@ askProceed
 
 #Create the network using docker compose
 if [ "${MODE}" == "up" ]; then
-  #networkUp
-  changeOrdererNode "add"
-#  changeOrdererNode "del"
+#  networkUp
+  if [ "$2" ==  1 ]; then
+    changeOrdererNode "ordernode" "add"
+  elif [ "$2" == 2 ]; then
+    changeOrdererNode "ordernode" "del"
+  elif [ "$2" == 3 ]; then
+    ChangeOrd1Org "ord1org" "add"
+  elif [ "$2" == 4 ]; then
+    ChangeOrd1Org "ord1org" "del"
+  elif [ "$2" == 5 ]; then
+    changeOrdererNode "ord1node" "add"
+  elif [ "$2" == 6 ]; then
+    changeOrdererNode "ord1node" "del"
+  else
+    printHelp
+    exit 1
+  fi
 elif [ "${MODE}" == "down" ]; then ## Clear the network
-  docker-compose -f docker-compose-ord4.yaml  down --volumes
+  docker-compose -f docker-compose-orderer4.example.com.yaml  down --volumes
+  docker-compose -f docker-compose-orderer.ord1.example.com.yaml  down --volumes
+  rm -rf ordnode/byfn-sys-channel
+  rm -rf ordnode/mychannel
+  rm -rf ord1-artifacts/crypto-config
 #  networkDown
 elif [ "${MODE}" == "generate" ]; then ## Generate Artifacts
   generateCerts
